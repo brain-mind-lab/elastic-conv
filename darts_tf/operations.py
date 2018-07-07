@@ -69,12 +69,23 @@ def dil_conv(_inp, C, kernel_size, stride, padding, dilation_rate, affine=True):
         num_outputs=C,
         kernel_size=kernel_size,
         depth_multiplier=C,
-        stride=(stride, stride),
+        stride=(1, 1),
         padding=padding,
         rate=dilation_rate,
         activation_fn=None,
         normalizer_fn=(lambda x: x)
     )
+    
+    if stride != 1:
+        _out = slim.conv2d(
+            _out,
+            num_outputs=C,
+            kernel_size=kernel_size,
+            stride=(stride, stride),
+            padding=padding,
+            activation_fn=None,
+            normalizer_fn=(lambda x: x)
+        )
     _out = batch_norm(_out, affine)
     
     return _out
