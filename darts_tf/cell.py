@@ -11,13 +11,9 @@ def mixed_op(_inp, weights, C, stride):
             res = batch_norm(res, False)
         op_res.append(res)
         
-    try:
-        op_res = tf.stack(op_res, axis=-1)
-    except:
-        print(_inp)
-        print(OPS.keys())
+    op_res = tf.stack(op_res, axis=-1)
     weighted = op_res * tf.reshape(weights, (1, 1, 1, 1, -1))
-    return tf.reduce_sum(op_res, axis=-1)
+    return tf.reduce_sum(weighted, axis=-1)
 
 def cell(s0, s1, steps, C, reduction, reduction_prev, weights=None):
     
