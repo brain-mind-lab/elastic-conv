@@ -31,7 +31,9 @@ def model(_inp, Cs, reductions, steps):
         _out = cell(s0, s1, steps, C, reduction, reduction_prev, alpha)
         cell_outputs.append(_out)
         
-    return cell_outputs[-1]
+    arch = [alpha_normal, alpha_reduction]
+        
+    return cell_outputs[-1], arch
 
 if __name__ == '__main__':
     _inp = tf.placeholder(tf.float32, (None, 28, 28, 3))
