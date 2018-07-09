@@ -1,3 +1,5 @@
+# Performs architecture and weights search for MNIST classifier
+
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -35,8 +37,11 @@ _onehot_labels = tf.one_hot(tf.expand_dims(_labels, axis=1), depth=10)
 
 _net = tf.reshape(_images, (-1, 28, 28, 1))
 
+# Stem
 _net = slim.conv2d(_net, 4, (5, 5), stride=(2, 2), padding='VALID')
 
+# Construct DARTS model
+# alpha stores list of variables, responsible for architecture only
 _net, alpha = model(_net, [4, 8, 8, 16, 16], [False, True, False, True, False], 5)
 
 _net = slim.conv2d(_net, 10, (3, 3), padding='VALID', activation_fn=tf.nn.softmax)
@@ -51,9 +56,11 @@ train_learning_rate = tf.train.exponential_decay(1e-4, global_step,
 
 w = [e for e in tf.trainable_variables() if not (e in alpha)]
 
+# Define optimizer for first optimization objective (change layer weights for minimizing loss on train set)
 _w_opt = (
     tf.train.AdamOptimizer(train_learning_rate).minimize(_loss, global_step=global_step, var_list=w)
 )
+# Define optimizer for second optimization objective (change architecture weights for minimizing loss on valid set)
 _alpha_opt = (
     tf.train.AdamOptimizer(0.5).minimize(_loss, global_step=global_step, var_list=alpha)
 )

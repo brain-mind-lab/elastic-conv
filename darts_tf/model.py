@@ -4,6 +4,12 @@ from cell import *
 
 slim = tf.contrib.slim
 
+# Constructs DARTS model
+# _inp - input tensor
+# Cs - list of number of channels for cells
+# reduction - list of boolean values, defining which cells are reduction
+# steps - number of intermediate steps within each cell
+
 def model(_inp, Cs, reductions, steps):
     alpha_normal = slim.variable(
         'alpha_normal',

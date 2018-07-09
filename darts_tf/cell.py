@@ -3,6 +3,12 @@ from operations import *
 
 slim = tf.contrib.slim
 
+# For given input costructs weighted sum of f(_inp) for every f from OPS
+# _inp - input tensor
+# weights - 1D vector of shape (len(OPS),) defining weight of each operation
+# C - number of channels (used in operations)
+# stride - stride (used in operations)
+
 def mixed_op(_inp, weights, C, stride):
     op_res = list()
     for k in OPS.keys():
@@ -14,6 +20,14 @@ def mixed_op(_inp, weights, C, stride):
     op_res = tf.stack(op_res, axis=-1)
     weighted = op_res * tf.reshape(weights, (1, 1, 1, 1, -1))
     return tf.reduce_sum(weighted, axis=-1)
+
+# Constructs single cell
+# s0 - output tensor of previous cell
+# s1 - output tensor of before previous cell
+# steps - number of intermediate steps within cell
+# reduction - whether or not this cell is reduction cell
+# reduction_prev - whether or not previouse cell is reduction cell
+# weights (optional) - predefined weight matrix for cell operations
 
 def cell(s0, s1, steps, C, reduction, reduction_prev, weights=None):
     
