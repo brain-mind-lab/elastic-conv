@@ -17,7 +17,7 @@ y_train = np.asarray(mnist.train.labels, dtype=np.int32)
 x_valid = mnist.test.images # Returns np.array
 y_valid = np.asarray(mnist.test.labels, dtype=np.int32)
 
-BATCH_SIZE = 32
+BATCH_SIZE = 100
 
 def next_batch(num, data, labels):
     idx = np.arange(0 , data.shape[0])
@@ -38,15 +38,19 @@ _onehot_labels = tf.one_hot(tf.expand_dims(_labels, axis=1), depth=10)
 _net = tf.reshape(_images, (-1, 28, 28, 1))
 
 # Stem
-_net = slim.conv2d(_net, 4, (5, 5), stride=(2, 2), padding='VALID')
+_net = slim.conv2d(_net, 32, (5, 5), stride=(2, 2), padding='VALID')
 
 # Construct DARTS model
 # alpha stores list of variables, responsible for architecture only
-_net, alpha = model(_net, [4, 8, 8, 16, 16], [False, True, False, True, False], 5)
+_net, alpha = model(_net, [32, 64, 64], [False, True, True], 1)
 
-_net = slim.conv2d(_net, 10, (3, 3), padding='VALID', activation_fn=tf.nn.softmax)
+_net = slim.conv2d(_net, 256, (3, 3), padding='VALID', activation_fn=tf.nn.relu)
 
-_logits = tf.keras.layers.Flatten()(_net)
+_net = tf.keras.layers.Flatten()(_net)
+
+_net = tf.layers.dense(inputs=_net, units=1024, activation=tf.nn.relu)
+_net = tf.layers.dropout(inputs=_net, rate=0.4)
+_logits = tf.layers.dense(inputs=_net, units=10, activation=tf.nn.softmax)
 
 #_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=_logits, labels=_onehot_labels))
 _loss = tf.losses.sparse_softmax_cross_entropy(labels=tf.cast(_labels, tf.int32), logits=_logits)
@@ -60,15 +64,19 @@ w = [e for e in tf.trainable_variables() if not (e in alpha)]
 
 # Define optimizer for first optimization objective (change layer weights for minimizing loss on train set)
 _w_opt = (
-    tf.train.MomentumOptimizer(learning_rate=1e-2, momentum=0.9).minimize(_loss, global_step=global_step, var_list=w)
+    tf.train.MomentumOptimizer(learning_rate=1e-1, momentum=0.9).minimize(_loss, global_step=global_step, var_list=w)
 )
 # Define optimizer for second optimization objective (change architecture weights for minimizing loss on valid set)
 _alpha_opt = (
-    tf.train.AdamOptimizer(0.5).minimize(_loss, global_step=global_step, var_list=alpha)
+    tf.train.AdamOptimizer(1e-1).minimize(_loss, global_step=global_step, var_list=alpha)
 )
 
+print('Model created')
+
 with tf.Session() as sess:
+    print('Session created')
     sess.run(tf.global_variables_initializer())
+    print('Initialization done')
 
     start_time = time.time()
     for i in count():
@@ -90,7 +98,7 @@ with tf.Session() as sess:
         })
 
         # Validate
-        valid_loss = sess.run(_loss, feed_dict={
+        valid_loss, logits, labels = sess.run([_loss, _logits, _labels], feed_dict={
             _images: valid_x,
             _labels: valid_y
         })
@@ -98,3 +106,17 @@ with tf.Session() as sess:
         if i % 10 == 0:
             print('Step #%i: train - %.4f valid - %.4f time (s) - %.2f' % (i, train_loss, valid_loss, (time.time() - start_time)))
             start_time = time.time()
+            
+        if i % 1000 == 0:
+            logits, labels = list(), list()
+            for i in range(0, x_valid.shape[0], BATCH_SIZE):
+                lo, la = sess.run([_logits, _labels], feed_dict={
+                    _images: x_valid[i:i+BATCH_SIZE],
+                    _labels: y_valid[i:i+BATCH_SIZE],
+                })
+                logits.append(lo.argmax(axis=1))
+                labels.append(la)
+            logits = np.concatenate(logits, axis=0)
+            labels = np.concatenate(labels, axis=0)
+            
+            print('Accuracy: %.2f' % ((logits == labels).mean() * 100) + '%')
