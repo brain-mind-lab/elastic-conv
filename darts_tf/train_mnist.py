@@ -48,8 +48,10 @@ _net = slim.conv2d(_net, 10, (3, 3), padding='VALID', activation_fn=tf.nn.softma
 
 _logits = tf.keras.layers.Flatten()(_net)
 
-_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=_logits, labels=_onehot_labels))
+#_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=_logits, labels=_onehot_labels))
+_loss = tf.losses.sparse_softmax_cross_entropy(labels=tf.cast(_labels, tf.int32), logits=_logits)
 
+alpha = alpha + tf.get_collection('alpha')
 global_step = tf.Variable(0, trainable=False)
 train_learning_rate = tf.train.exponential_decay(1e-4, global_step,
                                            100, 0.96, staircase=False)
@@ -58,7 +60,7 @@ w = [e for e in tf.trainable_variables() if not (e in alpha)]
 
 # Define optimizer for first optimization objective (change layer weights for minimizing loss on train set)
 _w_opt = (
-    tf.train.AdamOptimizer(train_learning_rate).minimize(_loss, global_step=global_step, var_list=w)
+    tf.train.MomentumOptimizer(learning_rate=1e-2, momentum=0.9).minimize(_loss, global_step=global_step, var_list=w)
 )
 # Define optimizer for second optimization objective (change architecture weights for minimizing loss on valid set)
 _alpha_opt = (

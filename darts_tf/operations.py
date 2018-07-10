@@ -1,4 +1,6 @@
 import tensorflow as tf
+from elastic_conv2d import elastic_conv2d
+
 slim = tf.contrib.slim
 
 OPS = {
@@ -6,13 +8,37 @@ OPS = {
     'avg_pool_3x3': (lambda _inp, C, stride, affine: tf.nn.avg_pool(_inp, (1, 3, 3, 1), (1, stride, stride, 1), padding='SAME')),
     'max_pool_3x3': (lambda _inp, C, stride, affine: tf.nn.max_pool(_inp, (1, 3, 3, 1), (1, stride, stride, 1), padding='SAME')),
     'skip_connect': (lambda _inp, C, stride, affine: tf.identity(_inp) if stride == 1 else factorized_reduce(_inp, C, affine)),
-    'sep_conv_3x3': (lambda _inp, C, stride, affine: sep_conv(_inp, C, (3, 3), stride=stride, padding='SAME', affine=affine)),
-    'sep_conv_5x5': (lambda _inp, C, stride, affine: sep_conv(_inp, C, (5, 5), stride=stride, padding='SAME', affine=affine)),
-    'sep_conv_7x7': (lambda _inp, C, stride, affine: sep_conv(_inp, C, (7, 7), stride=stride, padding='SAME', affine=affine)),
-    'dil_conv_3x3': (lambda _inp, C, stride, affine: dil_conv(_inp, C, (3, 3), stride=stride, padding='SAME', dilation_rate=2, affine=affine)),
-    'dil_conv_5x5': (lambda _inp, C, stride, affine: dil_conv(_inp, C, (5, 5), stride=stride, padding='SAME', dilation_rate=2, affine=affine)),
-    'conv_7x1_1x7': (lambda *args: conv_7x1_1x7(*args)),
+    'elastic_conv': (lambda _inp, C, stride, affine: elastic_conv(_inp, C, stride, affine))
 }
+
+#OPS = {
+#    'none': (lambda _inp, C, stride, affine: zeros(_inp, stride)),
+#    'avg_pool_3x3': (lambda _inp, C, stride, affine: tf.nn.avg_pool(_inp, (1, 3, 3, 1), (1, stride, stride, 1), padding='SAME')),
+#    'max_pool_3x3': (lambda _inp, C, stride, affine: tf.nn.max_pool(_inp, (1, 3, 3, 1), (1, stride, stride, 1), padding='SAME')),
+#    'skip_connect': (lambda _inp, C, stride, affine: tf.identity(_inp) if stride == 1 else factorized_reduce(_inp, C, affine)),
+#    'sep_conv_3x3': (lambda _inp, C, stride, affine: sep_conv(_inp, C, (3, 3), stride=stride, padding='SAME', affine=affine)),
+#    'sep_conv_5x5': (lambda _inp, C, stride, affine: sep_conv(_inp, C, (5, 5), stride=stride, padding='SAME', affine=affine)),
+#    'sep_conv_7x7': (lambda _inp, C, stride, affine: sep_conv(_inp, C, (7, 7), stride=stride, padding='SAME', affine=affine)),
+#    'dil_conv_3x3': (lambda _inp, C, stride, affine: dil_conv(_inp, C, (3, 3), stride=stride, padding='SAME', dilation_rate=2, affine=affine)),
+#    'dil_conv_5x5': (lambda _inp, C, stride, affine: dil_conv(_inp, C, (5, 5), stride=stride, padding='SAME', dilation_rate=2, affine=affine)),
+#    'conv_7x1_1x7': (lambda *args: conv_7x1_1x7(*args)),
+#}
+
+def elastic_conv(_inp, C, stride, affine):
+    _out = _inp
+    _out = tf.nn.relu(_out)
+    _out = elastic_conv2d(
+        _out,
+        filters=C,
+        min_kernel=(1, 1),
+        max_kernel=(7, 7),
+        stride=(stride, stride),
+        padding='SAME',
+        activation_fn=None
+    )
+    _out = batch_norm(_out, affine)
+    return _out
+    
     
 def batch_norm(_inp, affine=True):
     if affine:
