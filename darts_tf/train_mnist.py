@@ -30,7 +30,7 @@ def next_batch(num, data, labels):
 
 
 _images = tf.placeholder(tf.float32, (None, 784), name='images')
-_labels = tf.placeholder(tf.uint8, (None,), name='labels')
+_labels = tf.placeholder(tf.int32, (None,), name='labels')
 
 _onehot_labels = tf.one_hot(tf.expand_dims(_labels, axis=1), depth=10)
 
@@ -50,10 +50,12 @@ _net = tf.keras.layers.Flatten()(_net)
 
 _net = tf.layers.dense(inputs=_net, units=1024, activation=tf.nn.relu)
 _net = tf.layers.dropout(inputs=_net, rate=0.4)
-_logits = tf.layers.dense(inputs=_net, units=10, activation=tf.nn.softmax)
+_logits = tf.layers.dense(inputs=_net, units=10)
+
+_classes = tf.nn.softmax(_logits)
 
 #_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=_logits, labels=_onehot_labels))
-_loss = tf.losses.sparse_softmax_cross_entropy(labels=tf.cast(_labels, tf.int32), logits=_logits)
+_loss = tf.losses.sparse_softmax_cross_entropy(labels=_labels, logits=_logits)
 
 alpha = alpha + tf.get_collection('alpha')
 global_step = tf.Variable(0, trainable=False)
@@ -98,7 +100,7 @@ with tf.Session() as sess:
         })
 
         # Validate
-        valid_loss, logits, labels = sess.run([_loss, _logits, _labels], feed_dict={
+        valid_loss, labels = sess.run([_loss, _labels], feed_dict={
             _images: valid_x,
             _labels: valid_y
         })
@@ -106,11 +108,11 @@ with tf.Session() as sess:
         if i % 10 == 0:
             print('Step #%i: train - %.4f valid - %.4f time (s) - %.2f' % (i, train_loss, valid_loss, (time.time() - start_time)))
             start_time = time.time()
-            
-        if i % 1000 == 0:
+
+        if i % 100 == 0:
             logits, labels = list(), list()
             for i in range(0, x_valid.shape[0], BATCH_SIZE):
-                lo, la = sess.run([_logits, _labels], feed_dict={
+                lo, la = sess.run([_classes, _labels], feed_dict={
                     _images: x_valid[i:i+BATCH_SIZE],
                     _labels: y_valid[i:i+BATCH_SIZE],
                 })
@@ -118,5 +120,5 @@ with tf.Session() as sess:
                 labels.append(la)
             logits = np.concatenate(logits, axis=0)
             labels = np.concatenate(labels, axis=0)
-            
+
             print('Accuracy: %.2f' % ((logits == labels).mean() * 100) + '%')
