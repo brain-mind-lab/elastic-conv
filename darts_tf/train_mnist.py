@@ -6,11 +6,24 @@ import matplotlib.pyplot as plt
 
 from itertools import count
 
-slim = tf.contrib.slim
 import time
+import datetime
+import os
 
 from model import model
 
+from utils import plot_cells, _fprint
+
+slim = tf.contrib.slim
+
+LOG_DIR = os.path.join('mnist_search', '%s' % datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
+CELL_IMAGES_DIR = os.path.join(LOG_DIR, 'cells')
+LOG_FILE = os.path.join(LOG_DIR, 'log.txt')
+print = _fprint(LOG_FILE)
+
+if not os.path.exists(CELL_IMAGES_DIR):
+    os.makedirs(CELL_IMAGES_DIR)
+    
 mnist = tf.contrib.learn.datasets.load_dataset("mnist")
 x_train = mnist.train.images # Returns np.array
 y_train = np.asarray(mnist.train.labels, dtype=np.int32)
@@ -89,10 +102,36 @@ with tf.Session() as sess:
 
     start_time = time.time()
     for i in count():
-        train_w_x, train_w_y = next_batch(BATCH_SIZE, x_train_w, y_train_w)
-        train_a_x, train_a_y = next_batch(BATCH_SIZE, x_train_a, y_train_a)
 
         valid_x, valid_y = next_batch(BATCH_SIZE, x_valid, y_valid)
+
+        # Validate
+        valid_loss, labels = sess.run([_loss, _labels], feed_dict={
+            _images: valid_x,
+            _labels: valid_y
+        })
+
+        if i % 100 == 0:
+            logits, labels = list(), list()
+            for b in range(0, x_valid.shape[0], BATCH_SIZE):
+                lo, la = sess.run([_classes, _labels], feed_dict={
+                    _images: x_valid[b:b+BATCH_SIZE],
+                    _labels: y_valid[b:b+BATCH_SIZE],
+                })
+                logits.append(lo.argmax(axis=1))
+                labels.append(la)
+            logits = np.concatenate(logits, axis=0)
+            labels = np.concatenate(labels, axis=0)
+
+            print('Accuracy: %.2f' % ((logits == labels).mean() * 100) + '%')
+            
+        if i % 100 == 0:
+            alpha_normal, alpha_normal_econv, alpha_reduction, alpha_reduction_econv = sess.run(alpha)
+            cell_file = os.path.join(CELL_IMAGES_DIR, '%06d' % i)
+            plot_cells(alpha_normal, alpha_normal_econv, alpha_reduction, alpha_reduction_econv, cell_file)
+            
+        train_w_x, train_w_y = next_batch(BATCH_SIZE, x_train_w, y_train_w)
+        train_a_x, train_a_y = next_batch(BATCH_SIZE, x_train_a, y_train_a)
 
         # Train first optimization objective
         train_loss, _ = sess.run([_loss, _w_opt], feed_dict={
@@ -106,26 +145,6 @@ with tf.Session() as sess:
             _labels: train_a_y
         })
 
-        # Validate
-        valid_loss, labels = sess.run([_loss, _labels], feed_dict={
-            _images: valid_x,
-            _labels: valid_y
-        })
-
         if i % 10 == 0:
             print('Step #%i: train - %.4f valid - %.4f time (s) - %.2f' % (i, train_loss, valid_loss, (time.time() - start_time)))
             start_time = time.time()
-
-        if i % 100 == 0:
-            logits, labels = list(), list()
-            for i in range(0, x_valid.shape[0], BATCH_SIZE):
-                lo, la = sess.run([_classes, _labels], feed_dict={
-                    _images: x_valid[i:i+BATCH_SIZE],
-                    _labels: y_valid[i:i+BATCH_SIZE],
-                })
-                logits.append(lo.argmax(axis=1))
-                labels.append(la)
-            logits = np.concatenate(logits, axis=0)
-            labels = np.concatenate(labels, axis=0)
-
-            print('Accuracy: %.2f' % ((logits == labels).mean() * 100) + '%')

@@ -10,6 +10,20 @@ def request_weights_shape(min_kernel, max_kernel, stride=None):
     except:
         return 2
 
+class weight_to_size:
+    def __init__(self, min_kernel, max_kernel, stride=None):
+        self.d = dict()
+        c = 0
+        for i in range(min_kernel[0], max_kernel[0] + 1, stride[0]):
+            for j in range(min_kernel[1], max_kernel[1] + 1, stride[1]):
+                self.d[c] = (i, j)
+                c += 1
+                
+    def __getitem__(self, key):
+        if key.shape[0] == 2: # if kind is regression
+            return tuple(np.round(key).astype(int))
+        return self.d[key.argmax()]
+
 # Dumb workaround
 uses = 0
 

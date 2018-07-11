@@ -17,28 +17,28 @@ def model(_inp, Cs, reductions, steps):
     alpha_normal = slim.variable(
         'alpha_normal',
         shape=(steps + 2, steps + 2, len(OPS)),
-        initializer=tf.random_normal_initializer(),
+        initializer=tf.random_normal_initializer(stddev=1e-3),
     )
     normal_weights = tf.nn.softmax(alpha_normal, axis=2, name='normal_op_weights')
     
     alpha_normal_econv = slim.variable(
         'alpha_normal_econv',
         shape=(steps + 2, steps + 2, econv_weights_shape),
-        initializer=tf.random_normal_initializer(),
+        initializer=tf.random_normal_initializer(stddev=1e-3),
     )
     normal_econv_weights = tf.nn.softmax(alpha_normal_econv, axis=2, name='normal_econv_weights')
     
     alpha_reduction = slim.variable(
         'alpha_reduction',
         shape=(steps + 2, steps + 2, len(OPS)),
-        initializer=tf.random_normal_initializer(),
+        initializer=tf.random_normal_initializer(stddev=1e-3),
     )
     reduction_weights = tf.nn.softmax(alpha_reduction, axis=2, name='reduction_op_weights')
     
     alpha_reduction_econv = slim.variable(
         'alpha_reduction_econv',
         shape=(steps + 2, steps + 2, econv_weights_shape),
-        initializer=tf.random_normal_initializer(),
+        initializer=tf.random_normal_initializer(stddev=1e-3),
     )
     reduction_econv_weights = tf.nn.softmax(alpha_reduction_econv, axis=2, name='reduction_econv_weights')
     

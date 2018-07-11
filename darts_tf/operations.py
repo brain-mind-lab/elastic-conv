@@ -1,5 +1,5 @@
 import tensorflow as tf
-from elastic_conv2d import elastic_conv2d, request_weights_shape
+from elastic_conv2d import elastic_conv2d, request_weights_shape, weight_to_size
 
 slim = tf.contrib.slim
 
@@ -8,6 +8,7 @@ ECONV_MAX_KERNEL = (7, 7)
 ECONV_STRIDE = (2, 2)
 ECONV_KIND = 'classification'
 ECONV_WEIGHT_SHAPE = request_weights_shape(ECONV_MIN_KERNEL, ECONV_MAX_KERNEL, ECONV_STRIDE)
+ECONV_WEIGHT_TO_SIZE = weight_to_size(ECONV_MIN_KERNEL, ECONV_MAX_KERNEL, ECONV_STRIDE)
 
 OPS = {
     'none': (lambda _inp, C, stride, affine, *args: zeros(_inp, stride)),
