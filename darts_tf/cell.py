@@ -48,7 +48,7 @@ def cell(s0, s1, steps, C, reduction, reduction_prev, weights):
         res = list()
         for j in range(len(states)):
             stride = 2 if reduction and j < 2 else 1
-            res.append(mixed_op(states[j], (op_weights[i, j], econv_weights[i, j]), C, stride))
+            res.append(mixed_op(states[j], (op_weights[i + 2, j], econv_weights[i + 2, j]), C, stride))
         states.append(tf.reduce_sum(res, axis=0))
     
     return tf.concat(states[2:], axis=-1)

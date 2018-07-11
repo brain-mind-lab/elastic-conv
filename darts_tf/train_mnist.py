@@ -68,7 +68,7 @@ _net = slim.conv2d(_net, 256, (3, 3), padding='VALID', activation_fn=tf.nn.relu)
 
 _net = tf.keras.layers.Flatten()(_net)
 
-_net = tf.layers.dense(inputs=_net, units=1024, activation=tf.nn.relu)
+_net = tf.layers.dense(inputs=_net, units=10, activation=tf.nn.relu)
 _net = tf.layers.dropout(inputs=_net, rate=0.4)
 _logits = tf.layers.dense(inputs=_net, units=10)
 
@@ -90,7 +90,7 @@ _w_opt = (
 )
 # Define optimizer for second optimization objective (change architecture weights for minimizing loss on valid set)
 _alpha_opt = (
-    tf.train.AdamOptimizer(1e-1).minimize(_loss, global_step=global_step, var_list=alpha)
+    tf.train.AdamOptimizer(0.5).minimize(_loss, global_step=global_step, var_list=alpha)
 )
 
 print('Model created')
