@@ -1,5 +1,5 @@
 import tensorflow as tf
-from operations import *
+from operations import OPS, ECONV_WEIGHT_SHAPE, relu_conv_bn, batch_norm, factorized_reduce
 
 slim = tf.contrib.slim
 
@@ -10,15 +10,16 @@ slim = tf.contrib.slim
 # stride - stride (used in operations)
 
 def mixed_op(_inp, weights, C, stride):
+    op_weights, econv_weights = weights
     op_res = list()
     for k in OPS.keys():
-        res = OPS[k](_inp, C, stride, False)
+        res = OPS[k](_inp, C, stride, False, econv_weights)
         if 'pool' in k:
             res = batch_norm(res, False)
         op_res.append(res)
         
     op_res = tf.stack(op_res, axis=-1)
-    weighted = op_res * tf.reshape(weights, (1, 1, 1, 1, -1))
+    weighted = op_res * tf.reshape(op_weights, (1, 1, 1, 1, -1))
     return tf.reduce_sum(weighted, axis=-1)
 
 # Constructs single cell
@@ -29,17 +30,12 @@ def mixed_op(_inp, weights, C, stride):
 # reduction_prev - whether or not previouse cell is reduction cell
 # weights (optional) - predefined weight matrix for cell operations
 
-def cell(s0, s1, steps, C, reduction, reduction_prev, weights=None):
+def cell(s0, s1, steps, C, reduction, reduction_prev, weights):
     
-    if weights is None:
-        alpha = slim.variable(
-            'alpha',
-            shape=(steps + 2, steps + 2, len(OPS)),
-            initializer=tf.random_normal_initializer(),
-        )
-        weights = tf.nn.softmax(alpha, axis=2, name='op_weights')
-    else:
-        assert weights.shape == (steps + 2, steps + 2, len(OPS))
+    op_weights, econv_weights = weights
+    
+    assert op_weights.shape == (steps + 2, steps + 2, len(OPS.keys()))
+    assert econv_weights.shape[:2] == (steps + 2, steps + 2)
         
     if reduction_prev:
         s0 = factorized_reduce(s0, C)
@@ -52,7 +48,7 @@ def cell(s0, s1, steps, C, reduction, reduction_prev, weights=None):
         res = list()
         for j in range(len(states)):
             stride = 2 if reduction and j < 2 else 1
-            res.append(mixed_op(states[j], weights[i, j], C, stride))
+            res.append(mixed_op(states[j], (op_weights[i, j], econv_weights[i, j]), C, stride))
         states.append(tf.reduce_sum(res, axis=0))
     
     return tf.concat(states[2:], axis=-1)
@@ -61,5 +57,18 @@ if __name__ == '__main__':
     s0 = tf.placeholder(tf.float32, (None, 32, 32, 64))
     s1 = tf.placeholder(tf.float32, (None, 32, 32, 64))
     
-    y = cell(s0, s1, 7, 64, False, False)
+    steps = 7
+    op_weights = slim.variable(
+        'op_weights',
+        shape=(steps + 2, steps + 2, len(OPS)),
+        initializer=tf.random_normal_initializer(),
+    )
+    
+    econv_weights = slim.variable(
+        'econv_weights',
+        shape=(steps + 2, steps + 2, ECONV_WEIGHT_SHAPE),
+        initializer=tf.random_normal_initializer(),
+    )
+        
+    y = cell(s0, s1, steps, 64, False, False, (op_weights, econv_weights))
     print(y.shape)

@@ -3,6 +3,13 @@ import tensorflow as tf
 
 slim = tf.contrib.slim
 
+def request_weights_shape(min_kernel, max_kernel, stride=None):
+    try:
+        return np.arange(min_kernel[0], max_kernel[0] + 1, stride[0]).shape[0] * \
+               np.arange(min_kernel[1], max_kernel[1] + 1, stride[1]).shape[0]
+    except:
+        return 2
+
 # Dumb workaround
 uses = 0
 
@@ -67,14 +74,17 @@ def elastic_conv2d(
 
             masks = tf.constant(masks, dtype=tf.float32)
 
-            # Define variable for storing kernel size weights
-            kernel_weights_var = slim.variable(
-                'kernel_weights_raw',
-                shape=(masks.shape[2],),
-                initializer=tf.random_normal_initializer()
-            )
-            # Add variable to collection of alpha variables
-            tf.add_to_collection(alpha_collection_name, kernel_weights_var)
+            if alpha_var is None:
+                # Define variable for storing kernel size weights
+                kernel_weights_var = slim.variable(
+                    'kernel_weights_raw',
+                    shape=(masks.shape[2],),
+                    initializer=tf.random_normal_initializer()
+                )
+                # Add variable to collection of alpha variables
+                tf.add_to_collection(alpha_collection_name, kernel_weights_var)
+            else:
+                kernel_weights_var = alpha_var
 
             # Reweight with softmax
             kernel_weights = tf.nn.softmax(kernel_weights_var, name='kernel_weights')
@@ -90,13 +100,16 @@ def elastic_conv2d(
             # Define variable for storing kernel soft size
             # Default initializer is uniform distribution on [0, 1], where:
             # 0 = min_kernel[i], 1 = min_kernel[i]
-            kernel_size_var = slim.variable(
-                'kernel_size_raw',
-                shape=(len(min_kernel),),
-                initializer=tf.random_uniform_initializer()
-            )
-            # Add variable to collection of alpha variables
-            tf.add_to_collection(alpha_collection_name, kernel_size_var)
+            if alpha_var is None:
+                kernel_size_var = slim.variable(
+                    'kernel_size_raw',
+                    shape=(len(min_kernel),),
+                    initializer=tf.random_uniform_initializer()
+                )
+                # Add variable to collection of alpha variables
+                tf.add_to_collection(alpha_collection_name, kernel_size_var)
+            else:
+                kernel_size_var = alpha_var
             
             # Convert [0, 1] to [min_kernel, max_kernel]
             kernel_size = tf.identity((tf.constant(max_kernel, dtype=tf.float32) - tf.constant(min_kernel, dtype=tf.float32)) * tf.nn.sigmoid(kernel_size_var) + min_kernel, name='kernel_size')

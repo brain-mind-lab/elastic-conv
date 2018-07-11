@@ -1,14 +1,20 @@
 import tensorflow as tf
-from elastic_conv2d import elastic_conv2d
+from elastic_conv2d import elastic_conv2d, request_weights_shape
 
 slim = tf.contrib.slim
 
+ECONV_MIN_KERNEL = (1, 1)
+ECONV_MAX_KERNEL = (7, 7)
+ECONV_STRIDE = (2, 2)
+ECONV_KIND = 'classification'
+ECONV_WEIGHT_SHAPE = request_weights_shape(ECONV_MIN_KERNEL, ECONV_MAX_KERNEL, ECONV_STRIDE)
+
 OPS = {
-    'none': (lambda _inp, C, stride, affine: zeros(_inp, stride)),
-    'avg_pool_3x3': (lambda _inp, C, stride, affine: tf.nn.avg_pool(_inp, (1, 3, 3, 1), (1, stride, stride, 1), padding='SAME')),
-    'max_pool_3x3': (lambda _inp, C, stride, affine: tf.nn.max_pool(_inp, (1, 3, 3, 1), (1, stride, stride, 1), padding='SAME')),
-    'skip_connect': (lambda _inp, C, stride, affine: tf.identity(_inp) if stride == 1 else factorized_reduce(_inp, C, affine)),
-    'elastic_conv': (lambda _inp, C, stride, affine: elastic_conv(_inp, C, stride, affine))
+    'none': (lambda _inp, C, stride, affine, *args: zeros(_inp, stride)),
+    'avg_pool_3x3': (lambda _inp, C, stride, affine, *args: tf.nn.avg_pool(_inp, (1, 3, 3, 1), (1, stride, stride, 1), padding='SAME')),
+    'max_pool_3x3': (lambda _inp, C, stride, affine, *args: tf.nn.max_pool(_inp, (1, 3, 3, 1), (1, stride, stride, 1), padding='SAME')),
+    'skip_connect': (lambda _inp, C, stride, affine, *args: tf.identity(_inp) if stride == 1 else factorized_reduce(_inp, C, affine)),
+    'elastic_conv': (lambda _inp, C, stride, affine, *args: elastic_conv(_inp, C, stride, affine, *args))
 }
 
 #OPS = {
@@ -24,17 +30,20 @@ OPS = {
 #    'conv_7x1_1x7': (lambda *args: conv_7x1_1x7(*args)),
 #}
 
-def elastic_conv(_inp, C, stride, affine):
+def elastic_conv(_inp, C, stride, affine, alpha_var):
     _out = _inp
     _out = tf.nn.relu(_out)
     _out = elastic_conv2d(
         _out,
         filters=C,
-        min_kernel=(1, 1),
-        max_kernel=(7, 7),
+        min_kernel=ECONV_MIN_KERNEL,
+        max_kernel=ECONV_MAX_KERNEL,
         stride=(stride, stride),
         padding='SAME',
-        activation_fn=None
+        activation_fn=None,
+        kind=ECONV_KIND,
+        kernel_stride=ECONV_STRIDE,
+        alpha_var=alpha_var
     )
     _out = batch_norm(_out, affine)
     return _out
