@@ -42,12 +42,14 @@ def plot_cells(alpha_normal, alpha_normal_econv, alpha_reduction, alpha_reductio
             for j in range(i):
                 if debug:
                     softmax_weights = np.exp(alpha[i, j]) / np.exp(alpha[i, j]).sum()
-                    max_w = softmax_weights.max()
+                    
                     for op_name, op_weight in zip(OPS.keys(), softmax_weights):
                         if op_name == 'none':
                             continue
                         if op_name == 'skip_connect':
                             op_name = ''
+                            
+                        op_name = '%s w=%.2f' % (op_name, op_weight)
 
                         edge = pydot.Edge(steps[j], steps[i], label=op_name, color='black', penwidth=float(1 * op_weight))
                         G.add_edge(edge)
