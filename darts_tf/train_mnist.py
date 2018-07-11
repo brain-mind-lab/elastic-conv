@@ -17,16 +17,23 @@ y_train = np.asarray(mnist.train.labels, dtype=np.int32)
 x_valid = mnist.test.images # Returns np.array
 y_valid = np.asarray(mnist.test.labels, dtype=np.int32)
 
+# Split train set in order to separately train weight and architecture
+shuffle_indices = np.random.choice(np.arange(x_train.shape[0]), x_train.shape[0], replace=False)
+x_train_w = x_train[shuffle_indices[:(x_train.shape[0] // 2)]]
+y_train_w = y_train[shuffle_indices[:(x_train.shape[0] // 2)]]
+x_train_a = x_train[shuffle_indices[(x_train.shape[0] // 2):]]
+y_train_a = y_train[shuffle_indices[(x_train.shape[0] // 2):]]
+
 BATCH_SIZE = 100
 
 def next_batch(num, data, labels):
     idx = np.arange(0 , data.shape[0])
     np.random.shuffle(idx)
     idx = idx[:num]
-    data_shuffle = [data[ i] for i in idx]
-    labels_shuffle = [labels[ i] for i in idx]
+    data_shuffle = data[idx]
+    labels_shuffle = labels[idx]
 
-    return np.asarray(data_shuffle), np.asarray(labels_shuffle)
+    return data_shuffle, labels_shuffle
 
 
 _images = tf.placeholder(tf.float32, (None, 784), name='images')
@@ -82,8 +89,8 @@ with tf.Session() as sess:
 
     start_time = time.time()
     for i in count():
-        train_w_x, train_w_y = next_batch(BATCH_SIZE, x_train, y_train)
-        train_a_x, train_a_y = next_batch(BATCH_SIZE, x_train, y_train)
+        train_w_x, train_w_y = next_batch(BATCH_SIZE, x_train_w, y_train_w)
+        train_a_x, train_a_y = next_batch(BATCH_SIZE, x_train_a, y_train_a)
 
         valid_x, valid_y = next_batch(BATCH_SIZE, x_valid, y_valid)
 
